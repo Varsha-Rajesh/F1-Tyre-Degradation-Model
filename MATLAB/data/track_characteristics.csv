@@ -1,0 +1,23 @@
+Event,TrackLengthKm,NumCorners,HighSpeedCorners,LowSpeedCorners,ElevationChangeM,DownforceLevel,AbrasivenessRating
+Abu Dhabi Grand Prix,5.281,16,4,7,15,Medium,5
+Austrian Grand Prix,4.318,10,3,4,65,Medium,5
+Azerbaijan Grand Prix,6.003,20,3,10,4,Low,3
+Bahrain Grand Prix,5.412,15,3,7,15,Medium,4
+Belgian Grand Prix,7.004,19,7,5,100,Medium,2
+British Grand Prix,5.891,18,9,4,15,High,3
+Canadian Grand Prix,4.361,14,2,8,10,Low,1
+Chinese Grand Prix,5.451,16,4,6,10,Medium,4
+Dutch Grand Prix,4.259,14,3,6,15,High,3
+Emilia Romagna Grand Prix,4.909,19,5,7,30,High,4
+Hungarian Grand Prix,4.381,14,2,9,40,High,5
+Italian Grand Prix,5.793,11,2,6,7,Low,1
+Japanese Grand Prix,5.807,18,8,4,40,High,5
+Las Vegas Grand Prix,6.201,17,3,8,5,Low,2
+Mexico City Grand Prix,4.304,17,3,8,10,Medium,2
+Miami Grand Prix,5.412,19,4,9,5,Medium,4
+Monaco Grand Prix,3.337,19,1,15,42,High,1
+Qatar Grand Prix,5.38,16,7,4,8,High,1
+Saudi Arabian Grand Prix,6.174,27,10,8,5,High,5
+Singapore Grand Prix,4.94,19,2,12,5,High,2
+Spanish Grand Prix,4.657,14,5,6,30,High,3
+United States Grand Prix,5.513,20,6,7,40,Medium,1

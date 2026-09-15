@@ -1,0 +1,86 @@
+clear
+clc
+close all
+
+%% Load Engineered Dataset (2024 Training Data Only)
+
+T = readtable("data/engineered_dataset.csv");
+
+% Restrict to 2024 only — the proxy must be derived exclusively from
+% training data to avoid leaking 2025 test information into a feature
+% the model will then be trained on
+T = T(T.Year == 2024, :);
+
+%% Compute Degradation Slope per Event
+
+events = unique(string(T.Event));
+
+DegSlope = nan(numel(events),1);
+
+for i = 1:numel(events)
+
+    rows = strcmp(string(T.Event), events(i));
+    sub = T(rows,:);
+
+    % Restrict to a stable window of the stint to avoid out-lap /
+    % end-of-stint anomalies skewing the fit
+    sub = sub(sub.LapInStint >= 2 & sub.LapInStint <= 15, :);
+
+    if height(sub) >= 5
+        p = polyfit(sub.LapInStint, sub.DeltaBestLap, 1);
+        DegSlope(i) = p(1);
+    end
+
+end
+
+%% Convert Slope to a 1-5 Abrasiveness Rating
+
+validSlopes = DegSlope(~isnan(DegSlope));
+edges = quantile(validSlopes, [0.2 0.4 0.6 0.8]);
+
+AbrasivenessRating = nan(numel(events),1);
+AbrasivenessRating(~isnan(DegSlope)) = discretize(...
+    DegSlope(~isnan(DegSlope)), [-inf edges inf], 1:5);
+
+ProxyTable = table(events, DegSlope, AbrasivenessRating, ...
+    'VariableNames', {'Event','DegSlope','AbrasivenessRating'});
+
+disp(ProxyTable)
+
+%% Load Existing Track Characteristics CSV
+
+trackFile = "data/track_characteristics.csv";
+track = readtable(trackFile);
+
+% Trim both sides so matching isn't broken by whitespace differences
+track.Event = strtrim(string(track.Event));
+ProxyTable.Event = strtrim(string(ProxyTable.events));
+
+%% Update AbrasivenessRating Column In Place
+
+for i = 1:height(track)
+
+    idx = find(strcmp(ProxyTable.Event, track.Event(i)));
+
+    if ~isempty(idx) && ~isnan(ProxyTable.AbrasivenessRating(idx))
+        track.AbrasivenessRating(i) = ProxyTable.AbrasivenessRating(idx);
+    end
+
+end
+
+%% Report Any Events That Didn't Get a Rating
+
+missing = track.Event(isnan(track.AbrasivenessRating));
+
+if ~isempty(missing)
+    fprintf("No abrasiveness proxy computed for:\n")
+    disp(missing)
+else
+    fprintf("All events successfully assigned an abrasiveness rating.\n")
+end
+
+%% Write Back to the Same CSV
+
+writetable(track, trackFile)
+
+fprintf("track_characteristics.csv updated with proxy abrasiveness ratings.\n")
