@@ -1,322 +1,165 @@
 # F1 Tyre Degradation Model
 
-A machine-learning project investigating **Formula 1 tyre degradation** using real race data from the **2024 and 2025 F1 seasons**.
-
-The project uses **2024 data for training** and **2025 data for testing**. The goal is to investigate how tyre age, compound, fuel load, weather, and circuit characteristics affect F1 lap-time performance.
-
----
 # Requirements
 
 ### Python
 
 * Python 3.x
 * FastF1
-* NumPy
 * Pandas
+* NumPy
 
 ### MATLAB
 
-* MATLAB
+* MATLAB R2024b or newer
 * Statistics and Machine Learning Toolbox
-
----
 
 # 1. Data Collection — Python + FastF1
 
-The project begins with Python and the **FastF1** library.
+The Python data collection script uses FastF1 to collect Formula 1 lap-by-lap data.
 
-The data collection script retrieves race data from the **2024 and 2025 Formula 1 seasons** and creates the initial dataset.
-
-The dataset contains information including:
-
-* Driver
-* Team
-* Event
-* Lap Number
-* Stint
-* Tyre Life
-* Compound
-* Lap Time
-* Position
-* Track Temperature
-* Air Temperature
-* Fuel Estimate
+The current project focuses on **Oscar Piastri** and **McLaren**.
 
 ### Run the Python script
 
-From the project directory:
+Run the data collection Python script to download the required race data.
 
-```bash
-python your_data_collection_script.py
-```
-
-The script creates:
-
-```text
-data/master_dataset.csv
-```
-
-This CSV is then used by MATLAB.
-
----
+The collected data is stored in the `data/` directory.
 
 # 2. Data Exploration — MATLAB
 
-Open the MATLAB project:
+The `Data_Exploration.mlx` script explores the collected lap data and prepares it for modeling.
 
-```text
-F1TyreModel.prj
-```
+The dataset is filtered to:
 
-Run:
+* Driver: Piastri (`PIA`)
+* Team: McLaren
+* Dry tyre compounds: Soft, Medium, Hard
 
-```text
-scripts/Data_Exploration.mlx
-```
+Pit-in and pit-out laps are removed, along with short stints containing fewer than five laps.
 
-This stage examines and cleans the raw dataset.
+Lap times are also normalized relative to the fastest lap at each event to reduce differences between circuits.
 
-The analysis focuses on the three dry-weather compounds:
+The cleaned dataset is saved as:
 
-```text
-SOFT
-MEDIUM
-HARD
-```
-
-The cleaned data is then passed to the feature-engineering stage.
-
----
+`data/clean_dataset.csv`
 
 # 3. Feature Engineering — MATLAB
 
-Run:
+Feature engineering converts the cleaned dataset into variables that can be used by the machine learning model.
 
-```text
-scripts/Feature_Engineering.mlx
-```
+Current features include:
 
-This stage prepares the cleaned data for machine learning.
-
-Raw race data is transformed into features that can be used to investigate relationships between tyre conditions and lap-time performance.
-
-The resulting dataset is:
-
-```text
-data/engineered_dataset.csv
-```
-
-This dataset is used for the track analysis and machine-learning stages.
-
----
+* `LapInStint` — Number of laps completed on the current tyre stint
+* `Compound` — Soft, Medium, or Hard
+* `FuelEstimate` — Estimated fuel load
+* `TrackTemp` — Track temperature
+* `AirTemp` — Air temperature
+* `Event` — F1 race/event
+* `TyreLife` — Total tyre age
+* `AbrasivenessRating` — Estimated track abrasiveness
 
 # 4. Track Analysis — MATLAB
 
-Run:
+Track characteristics are analyzed to account for differences between circuits.
 
-```text
-scripts/Track_Analysis.mlx
-```
+Track-specific information is stored in:
 
-This script analyzes tyre performance at individual circuits and automatically generates track-specific figures.
+`data/track_characteristics.csv`
 
-The primary relationship investigated is:
+This allows the model to distinguish between circuits rather than treating every track as having the same tyre behavior.
 
-[
-\text{Lap in Stint} \rightarrow \text{Performance Loss}
-]
+# 5. Track Abrasiveness — MATLAB
 
-Figures are automatically organized into folders within:
+Track abrasiveness is estimated using a data-derived degradation proxy.
 
-```text
-figures/
-```
+The `Compute_Abrasiveness_Proxy.mlx` script:
 
-The analysis allows comparison of the degradation behavior of:
+1. Loads the engineered dataset.
+2. Uses 2024 data.
+3. Groups laps by event.
+4. Uses laps 2–15 of each stint.
+5. Calculates the degradation slope between `LapInStint` and `DeltaBestLap`.
+6. Requires at least five observations per event.
+7. Converts the resulting degradation slopes into a 1–5 abrasiveness rating using quintiles.
+8. Writes the resulting ratings into `data/track_characteristics.csv`.
 
-* Soft
-* Medium
-* Hard
+A rating of **1** represents relatively low observed tyre degradation, while **5** represents relatively high observed tyre degradation.
 
-tyres across different circuits.
+This is a **data-derived proxy for track abrasiveness**, not a direct physical measurement of the track surface.
 
----
+# 6. Random Forest Model — MATLAB
 
-# 5. Random Forest Model — MATLAB
-
-Run:
-
-```text
-scripts/RandomForest_Model.mlx
-```
-
-The Random Forest model is trained using **2024 data** and evaluated using **2025 data**.
+A Random Forest regression model is used to predict tyre performance.
 
 ### Current model inputs
 
-The model currently uses:
-
-| Feature        | Description                                   |
-| -------------- | --------------------------------------------- |
-| `LapInStint`   | Number of laps completed on the current stint |
-| `Compound`     | Soft, Medium, or Hard                         |
-| `FuelEstimate` | Estimated fuel load                           |
-| `TrackTemp`    | Track temperature                             |
-| `AirTemp`      | Air temperature                               |
-| `Event`        | F1 circuit/event                              |
+* `LapInStint`
+* `Compound`
+* `FuelEstimate`
+* `TrackTemp`
+* `AirTemp`
+* `Event`
+* `TyreLife`
+* `AbrasivenessRating`
 
 ### Target
 
-```text
-LapTime
-```
+The model evaluates two targets:
 
-The trained model, predictions, evaluation metrics, and figures are automatically saved to:
-
-```text
-results/
-```
-
----
+* `DeltaBestLap` — Lap time above the event's fastest lap
+* `AbsoluteLapTime` — Raw lap time in seconds
 
 # Model Results
 
-The current Random Forest model produced the following results on the **2025 test data**:
+### DeltaBestLap
 
-| Metric   |       Result |
-| -------- | -----------: |
-| **RMSE** | **5.4323 s** |
-| **MAE**  | **4.4687 s** |
-| **R²**   |  **0.73941** |
+* **RMSE:** 0.78436 s
+* **MAE:** 0.58646 s
+* **R²:** -0.22211
 
-### RMSE — 5.4323 s
+### AbsoluteLapTime
 
-An RMSE of **5.43 seconds** indicates that the model still has substantial error when predicting absolute F1 lap time.
-
-### MAE — 4.4687 s
-
-The model's predictions differ from actual lap times by approximately **4.47 seconds per lap on average**.
-
-### R² — 0.73941
-
-The **R² value** indicates that the model explains approximately **73.9% of the variation in lap times** within the test dataset.
-
----
+* **RMSE:** 0.78436 s
+* **MAE:** 0.58646 s
+* **R²:** 0.99480
 
 # Model Limitations
 
-The current model provides a baseline, but several factors that influence F1 lap time and tyre degradation are not currently represented.
-
 ### Tyre State
 
-* `TyreLife`
-* `FreshTyre`
-* Previous tyre usage
-* Stint history
-
-`LapInStint` alone does not completely describe the physical age of a tyre.
+The model does not fully capture every factor affecting tyre degradation, including tyre preparation, graining, overheating, and individual tyre sets.
 
 ### Race Conditions
 
-The model does not fully account for:
-
-* Safety Car / VSC periods
-* Yellow flags
-* Pit-in and pit-out laps
-* Traffic
-* Dirty air
-* Track evolution
-
-These can significantly alter lap time without representing actual tyre degradation.
+Safety cars, traffic, yellow flags, and changing race conditions can affect lap times.
 
 ### Fuel Load
 
-The current `FuelEstimate` is an approximation. A more accurate fuel-load model could better separate the performance effect of decreasing fuel mass from actual tyre degradation.
+Fuel load is estimated rather than directly measured.
 
 ### Driver and Car Performance
 
-Driver and team/car performance are not directly included as model predictors.
-
-This prevents the model from simply learning that certain drivers or cars are faster instead of learning tyre behavior.
-
-A future approach could normalize lap time around a driver/car baseline to isolate tyre-related performance loss.
+The model currently focuses on Oscar Piastri and McLaren, so the results may not generalize directly to other drivers or teams.
 
 ### Weather
 
-The model currently uses track and air temperature but does not fully capture changing conditions throughout a race.
-
-Future versions could incorporate:
-
-* Lap-by-lap track temperature
-* Humidity
-* Wind speed
-* Wind direction
-* Air pressure
+Weather and track conditions can change throughout a session.
 
 ### Track Characteristics
 
-Currently, `Event` identifies the circuit, but the model does not explicitly understand the physical characteristics that make one circuit different from another.
-
-Future features could include:
-
-* Track length
-* Average speed
-* Corner count
-* High-speed corner count
-* Low-speed corner count
-* Braking zones
-* Track abrasiveness
-* Lateral tyre loading
-* Longitudinal tyre loading
-
----
+The abrasiveness rating is a data-derived proxy based on observed degradation and should not be interpreted as a direct measurement of physical track surface properties.
 
 # Future Improvements
 
-The current model should be treated as a **baseline** for future development.
-
-A major improvement would be changing the target from absolute:
-
-```text
-LapTime
-```
-
-to a normalized:
-
-```text
-Performance Loss
-```
-
-This would allow the model to focus more directly on tyre degradation rather than overall driver and car pace.
-
-The improved model could incorporate:
-
-```text
-TyreLife
-Compound
-Fuel Load
-Track Temperature
-Air Temperature
-Track Evolution
-Track Characteristics
-Driver/Car Normalized Pace
-Traffic
-Race Conditions
-```
----
+* Add more drivers and teams
+* Improve fuel-load estimation
+* Include weather changes during sessions
+* Add tyre compound-specific degradation models
+* Incorporate traffic and race conditions
+* Improve track characteristic measurements
+* Test additional machine learning algorithms
 
 # Future Model Development
 
-Future versions can compare multiple machine-learning approaches using the same training and testing methodology:
-
-* Random Forest
-* Gradient Boosting
-* Gaussian Process Regression
-
-All models can be trained on **2024 data** and evaluated on **2025 data** to determine which approach best predicts tyre performance.
-
-
-The current results establish a baseline against which future feature-engineering and modeling improvements can be measured.
-
-```
-```
+Future versions of the model will aim to provide more detailed tyre degradation predictions by combining driver behavior, tyre characteristics, track conditions, and race strategy.
